@@ -104,7 +104,7 @@ export function TodoScreen({ user, onSignedOut }: TodoScreenProps) {
           pending={pending}
           onToggle={(todo) => {
             setLogoutError('')
-            void toggleTodo(todo)
+            return toggleTodo(todo)
           }}
           onRemove={(id) => {
             setLogoutError('')

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
@@ -250,7 +250,10 @@ describe('App', () => {
       'aria-expanded',
       'false',
     )
-    expect(screen.queryByText('Plan the day')).not.toBeInTheDocument()
+    fireEvent.animationEnd(screen.getByText('Plan the day').closest('li')!)
+    await waitFor(() => {
+      expect(screen.queryByText('Plan the day')).not.toBeInTheDocument()
+    })
     expect(mockedApi.updateTodo).toHaveBeenCalledWith(1, true)
 
     await user.click(screen.getByRole('button', { name: 'Remove Ship the app' }))
@@ -258,6 +261,116 @@ describe('App', () => {
     expect(screen.queryByText('Ship the app')).not.toBeInTheDocument()
     expect(mockedApi.removeTodo).toHaveBeenCalledWith(2)
     expect(mockedApi.listTodos).toHaveBeenCalledTimes(4)
+  })
+
+  test('confirms a completed todo before filing it under the collapsed completed section', async () => {
+    const user = userEvent.setup()
+    const todo: api.Todo = {
+      id: 1,
+      title: 'Plan the day',
+      completed: false,
+      createdAt: '2026-09-01T08:00:00Z',
+      updatedAt: '2026-09-01T08:00:00Z',
+    }
+    let confirmCompletion: ((todo: api.Todo) => void) | undefined
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    mockedApi.listTodos
+      .mockResolvedValueOnce([todo])
+      .mockResolvedValueOnce([{ ...todo, completed: true }])
+    mockedApi.updateTodo.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          confirmCompletion = resolve
+        }),
+    )
+    render(<App />)
+
+    await user.click(
+      await screen.findByRole('checkbox', { name: 'Mark Plan the day completed' }),
+    )
+
+    expect(mockedApi.updateTodo).toHaveBeenCalledWith(1, true)
+    expect(screen.getByRole('list', { name: 'Active todos' })).toHaveTextContent('Plan the day')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+
+    confirmCompletion?.({ ...todo, completed: true })
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Plan the day moved to Completed.',
+    )
+    const completedToggle = screen.getByRole('button', { name: 'Completed (1)' })
+    expect(completedToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('list', { name: 'Completed todos' })).not.toBeInTheDocument()
+
+    const departingTodo = screen.getByText('Plan the day').closest('li')
+    expect(departingTodo).toBeVisible()
+    fireEvent.animationEnd(departingTodo!)
+
+    await waitFor(() => {
+      expect(screen.queryByText('Plan the day')).not.toBeInTheDocument()
+    })
+  })
+
+  test('keeps a todo active without a completion cue when completion fails', async () => {
+    const user = userEvent.setup()
+    const todo: api.Todo = {
+      id: 1,
+      title: 'Plan the day',
+      completed: false,
+      createdAt: '2026-09-01T08:00:00Z',
+      updatedAt: '2026-09-01T08:00:00Z',
+    }
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    mockedApi.listTodos.mockResolvedValue([todo])
+    mockedApi.updateTodo.mockRejectedValue(new api.ApiError('Could not complete todo'))
+    render(<App />)
+
+    await user.click(
+      await screen.findByRole('checkbox', { name: 'Mark Plan the day completed' }),
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not complete todo')
+    expect(screen.getByRole('list', { name: 'Active todos' })).toHaveTextContent('Plan the day')
+    expect(
+      screen.getByRole('checkbox', { name: 'Mark Plan the day completed' }),
+    ).toBeEnabled()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Completed/ })).not.toBeInTheDocument()
+  })
+
+  test('waits for a successful todo refresh before showing the completion cue', async () => {
+    const user = userEvent.setup()
+    const todo: api.Todo = {
+      id: 1,
+      title: 'Plan the day',
+      completed: false,
+      createdAt: '2026-09-01T08:00:00Z',
+      updatedAt: '2026-09-01T08:00:00Z',
+    }
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    mockedApi.listTodos
+      .mockResolvedValueOnce([todo])
+      .mockRejectedValueOnce(new api.ApiError('Could not refresh todos'))
+    mockedApi.updateTodo.mockResolvedValue({ ...todo, completed: true })
+    render(<App />)
+
+    await user.click(
+      await screen.findByRole('checkbox', { name: 'Mark Plan the day completed' }),
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not refresh todos')
+    expect(screen.getByRole('list', { name: 'Active todos' })).toHaveTextContent('Plan the day')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Completed/ })).not.toBeInTheDocument()
   })
 
   test('shows a retryable todo loading error', async () => {

@@ -13,8 +13,10 @@ export function useTodos() {
     try {
       setTodos(await api.listTodos())
       setError('')
+      return true
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not load your todos.')
+      return false
     } finally {
       setInitialLoading(false)
     }
@@ -30,8 +32,7 @@ export function useTodos() {
     let changed = false
     try {
       await action()
-      changed = true
-      await loadTodos()
+      changed = await loadTodos()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save that change.')
     } finally {
