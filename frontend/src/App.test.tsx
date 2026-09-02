@@ -79,6 +79,23 @@ describe('App', () => {
     expect(await screen.findByText('Your day is wide open.')).toBeInTheDocument()
   })
 
+  test('signs out and returns to the anonymous screen', async () => {
+    const user = userEvent.setup()
+    mockedApi.getSession
+      .mockResolvedValueOnce({
+        user: { id: 1, email: 'person@example.com' },
+        csrfToken: 'user-token',
+      })
+      .mockResolvedValueOnce({ user: null, csrfToken: 'anonymous-token' })
+    mockedApi.logout.mockResolvedValue()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Sign out' }))
+
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument()
+    expect(mockedApi.logout).toHaveBeenCalledOnce()
+  })
+
   test('adds, completes, and removes todos with a refetch after each change', async () => {
     const user = userEvent.setup()
     const first: api.Todo = {
