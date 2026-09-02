@@ -31,20 +31,24 @@ Requirements: Python 3.14 and Node.js 24.
 
 ```bash
 make setup
-export SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex())')"
-make migrate
+make start
 ```
 
-Start the backend and frontend in separate terminals:
+Open [http://localhost:5173](http://localhost:5173). Start or stop either process independently when needed:
 
 ```bash
-cd backend
-../.venv/bin/flask --app daylist run --debug
+make be-start
+make fe-start
+make be-stop
+make fe-stop
 ```
 
+`make stop` stops both local processes. Logs and PID state live under `.run/`; stopping preserves the logs, while `make clean` stops the processes and removes logs, caches, coverage, and frontend build output. Dependencies and the SQLite database are preserved.
+
+Backend startup runs migrations automatically. Root `.env` values are loaded when present, with a development-only fallback secret for local use. Override the default ports when necessary:
+
 ```bash
-cd frontend
-npm run dev
+BE_PORT=5001 FE_PORT=5174 make start
 ```
 
 The local SQLite file is created beneath `backend/instance/`. Vite proxies browser requests under `/api` to Flask, so no development CORS configuration is required.
@@ -55,7 +59,7 @@ The local SQLite file is created beneath `backend/instance/`. Vite proxies brows
 make check
 ```
 
-Useful focused commands are discoverable with `make -qp` and in the root `Makefile`. The complete check runs backend lint/tests plus frontend lint, typechecking, tests, and production build.
+Useful focused commands use the `be-*` and `fe-*` prefixes and are discoverable with `make -qp`. The previous `backend-*` and `frontend-*` names remain compatibility aliases. The complete check runs backend lint/tests, frontend lint/typechecking/tests/build, and Makefile lifecycle tests.
 
 ## HTTP interface
 

@@ -8,5 +8,4 @@ The HTTP interface is the test seam. Exercise it with Flask's test client and a 
 - Apply CSRF protection to every state-changing route, including authentication.
 - Add schema changes through Alembic migrations.
 
-Backend work is complete when `make backend-check` passes from the repository root.
-
+Backend work is complete when `make be-check` passes from the repository root.

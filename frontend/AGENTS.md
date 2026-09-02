@@ -10,4 +10,4 @@ The rendered user interface is the test seam. Assert visible behavior and access
 
 - Visual design: read `DESIGN.md` when changing styling, layout, responsive behavior, or UI components.
 
-Frontend work is complete when `make frontend-check` passes from the repository root.
+Frontend work is complete when `make fe-check` passes from the repository root.
