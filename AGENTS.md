@@ -13,3 +13,12 @@ Run `make check` before declaring a change complete. A change is complete when i
 
 `skills-lock.json` is the source of truth for installed project skills.
 
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked as local markdown under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+This repo uses a single-context domain-doc layout. See `docs/agents/domain.md`.
