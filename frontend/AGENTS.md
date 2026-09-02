@@ -6,4 +6,8 @@ The rendered user interface is the test seam. Assert visible behavior and access
 - Treat server responses as authoritative and reload todos after every successful mutation.
 - Give every asynchronous state an accessible loading, pending, empty, or error presentation.
 
+## Context pointers
+
+- Visual design: read `DESIGN.md` when changing styling, layout, responsive behavior, or UI components.
+
 Frontend work is complete when `make frontend-check` passes from the repository root.
