@@ -1,4 +1,4 @@
-import type { Todo } from '../types/todo'
+import type { CreateTodoInput, Todo, UpdateTodoInput } from '../types/todo'
 import { request } from './client'
 
 export async function listTodos(): Promise<Todo[]> {
@@ -6,18 +6,18 @@ export async function listTodos(): Promise<Todo[]> {
   return result.todos
 }
 
-export async function addTodo(title: string): Promise<Todo> {
+export async function addTodo(input: CreateTodoInput): Promise<Todo> {
   const result = await request<{ todo: Todo }>('/api/todos', {
     method: 'POST',
-    body: JSON.stringify({ title }),
+    body: JSON.stringify(input),
   })
   return result.todo
 }
 
-export async function updateTodo(id: number, completed: boolean): Promise<Todo> {
+export async function updateTodo(id: number, changes: UpdateTodoInput): Promise<Todo> {
   const result = await request<{ todo: Todo }>(`/api/todos/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ completed }),
+    body: JSON.stringify(changes),
   })
   return result.todo
 }

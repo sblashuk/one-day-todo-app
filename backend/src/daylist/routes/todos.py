@@ -11,11 +11,13 @@ from ..services import todos as todo_service
 blueprint = Blueprint("todos", __name__, url_prefix="/api/todos")
 
 
-def todo_json(todo: Todo) -> dict[str, int | str | bool]:
+def todo_json(todo: Todo) -> dict[str, int | str | bool | None]:
     return {
         "id": todo.id,
         "title": todo.title,
         "completed": todo.completed,
+        "dueAt": iso_utc(todo.due_at) if todo.due_at is not None else None,
+        "priority": todo.priority,
         "createdAt": iso_utc(todo.created_at),
         "updatedAt": iso_utc(todo.updated_at),
     }
@@ -39,8 +41,12 @@ def list_todos():
 def add_todo():
     payload: Any = request.get_json(silent=True)
     raw_title = payload.get("title") if isinstance(payload, dict) else None
+    raw_due_at = payload.get("dueAt") if isinstance(payload, dict) else None
+    raw_priority = payload.get("priority") if isinstance(payload, dict) else None
     try:
-        todo = todo_service.create_todo(current_user.id, raw_title)
+        todo = todo_service.create_todo(
+            current_user.id, raw_title, raw_due_at, raw_priority
+        )
     except todo_service.TodoValidationError as error:
         return api_error(
             400, "validation_error", "Check the highlighted fields.", error.fields
@@ -52,9 +58,30 @@ def add_todo():
 @login_required
 def update_todo(todo_id: int):
     payload: Any = request.get_json(silent=True)
-    completed = payload.get("completed") if isinstance(payload, dict) else None
+    if not isinstance(payload, dict):
+        return api_error(
+            400,
+            "validation_error",
+            "Check the highlighted fields.",
+            {"request": "A JSON object is required."},
+        )
+    if not payload:
+        return api_error(
+            400,
+            "validation_error",
+            "Check the highlighted fields.",
+            {"request": "Provide at least one todo field."},
+        )
+    supported_fields = {"title", "completed", "dueAt", "priority"}
+    if not payload.keys() <= supported_fields:
+        return api_error(
+            400,
+            "validation_error",
+            "Check the highlighted fields.",
+            {"request": "Provide only supported todo fields."},
+        )
     try:
-        todo = todo_service.set_todo_completed(current_user.id, todo_id, completed)
+        todo = todo_service.update_todo(current_user.id, todo_id, payload)
     except todo_service.TodoNotFoundError:
         return api_error(404, "todo_not_found", "Todo not found.")
     except todo_service.TodoValidationError as error:

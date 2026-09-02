@@ -17,9 +17,11 @@ export function TodoScreen({ user, onSignedOut }: TodoScreenProps) {
     initialLoading,
     error: todoError,
     pending,
+    validation,
     loadTodos,
     addTodo,
     toggleTodo,
+    updateTodo,
     removeTodo,
   } = useTodos()
   const [logoutPending, setLogoutPending] = useState(false)
@@ -83,9 +85,10 @@ export function TodoScreen({ user, onSignedOut }: TodoScreenProps) {
 
         <AddTodoForm
           pending={pending === 'add'}
-          onAdd={(title) => {
+          fieldErrors={validation?.key === 'add' ? validation.fields : undefined}
+          onAdd={(input) => {
             setLogoutError('')
-            return addTodo(title)
+            return addTodo(input)
           }}
         />
 
@@ -102,10 +105,12 @@ export function TodoScreen({ user, onSignedOut }: TodoScreenProps) {
           todos={todos}
           initialLoading={initialLoading}
           pending={pending}
+          validation={validation}
           onToggle={(todo) => {
             setLogoutError('')
             return toggleTodo(todo)
           }}
+          onUpdate={updateTodo}
           onRemove={(id) => {
             setLogoutError('')
             void removeTodo(id)

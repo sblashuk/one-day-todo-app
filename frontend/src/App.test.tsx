@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
@@ -24,6 +24,7 @@ const mockedApi = vi.mocked(api)
 
 describe('App', () => {
   beforeEach(() => {
+    vi.useRealTimers()
     mockedApi.getSession.mockResolvedValue({ user: null, csrfToken: 'token' })
     mockedApi.listTodos.mockResolvedValue([])
   })
@@ -80,6 +81,181 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: /Completed/ })).not.toBeInTheDocument()
   })
 
+  test('adds a todo with a local due date and priority', async () => {
+    const user = userEvent.setup()
+    const dueAt = new Date(2026, 8, 3, 14, 30).toISOString()
+    const created: api.Todo = {
+      id: 1,
+      title: 'Ship the app',
+      completed: false,
+      dueAt,
+      priority: 'high',
+      createdAt: '2026-09-02T08:00:00Z',
+      updatedAt: '2026-09-02T08:00:00Z',
+    }
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    mockedApi.listTodos.mockResolvedValueOnce([]).mockResolvedValueOnce([created])
+    mockedApi.addTodo.mockResolvedValue(created)
+    render(<App />)
+
+    await user.type(await screen.findByLabelText('New todo'), 'Ship the app')
+    fireEvent.change(screen.getByLabelText('Due date and time'), {
+      target: { value: '2026-09-03T14:30' },
+    })
+    await user.selectOptions(screen.getByLabelText('Priority'), 'high')
+    await user.click(screen.getByRole('button', { name: 'Add todo' }))
+
+    expect(mockedApi.addTodo).toHaveBeenCalledWith({
+      title: 'Ship the app',
+      dueAt,
+      priority: 'high',
+    })
+    expect(await screen.findByText('High priority')).toBeInTheDocument()
+    expect(screen.getByLabelText('New todo')).toHaveValue('')
+    expect(screen.getByLabelText('Due date and time')).toHaveValue('')
+    expect(screen.getByLabelText('Priority')).toHaveValue('')
+  })
+
+  test('edits todo details inline and can cancel without saving', async () => {
+    const user = userEvent.setup()
+    const original: api.Todo = {
+      id: 1,
+      title: 'Draft release',
+      completed: false,
+      dueAt: null,
+      priority: null,
+      createdAt: '2026-09-01T08:00:00Z',
+      updatedAt: '2026-09-01T08:00:00Z',
+    }
+    const dueAt = new Date(2026, 8, 4, 9, 15).toISOString()
+    const updated: api.Todo = {
+      ...original,
+      title: 'Ship release',
+      dueAt,
+      priority: 'medium',
+      updatedAt: '2026-09-02T09:00:00Z',
+    }
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    mockedApi.listTodos.mockResolvedValueOnce([original]).mockResolvedValueOnce([updated])
+    mockedApi.updateTodo.mockResolvedValue(updated)
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Edit Draft release' }))
+    await user.clear(screen.getByLabelText('Edit title for Draft release'))
+    await user.type(screen.getByLabelText('Edit title for Draft release'), 'Discard me')
+    await user.click(screen.getByRole('button', { name: 'Cancel editing Draft release' }))
+    expect(screen.getByText('Draft release')).toBeInTheDocument()
+    expect(mockedApi.updateTodo).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Edit Draft release' }))
+    await user.clear(screen.getByLabelText('Edit title for Draft release'))
+    await user.type(screen.getByLabelText('Edit title for Draft release'), 'Ship release')
+    fireEvent.change(screen.getByLabelText('Edit due date and time for Draft release'), {
+      target: { value: '2026-09-04T09:15' },
+    })
+    await user.selectOptions(screen.getByLabelText('Edit priority for Draft release'), 'medium')
+    await user.click(screen.getByRole('button', { name: 'Save Draft release' }))
+
+    expect(mockedApi.updateTodo).toHaveBeenCalledWith(1, {
+      title: 'Ship release',
+      dueAt,
+      priority: 'medium',
+    })
+    expect(await screen.findByText('Ship release')).toBeInTheDocument()
+    expect(screen.getByText('Medium priority')).toBeInTheDocument()
+  })
+
+  test('changes a due-today todo to overdue while the page remains open', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 8, 2, 14, 0, 0))
+    const dueAt = new Date(2026, 8, 2, 14, 0, 15).toISOString()
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    mockedApi.listTodos.mockResolvedValue([
+      {
+        id: 1,
+        title: 'Join the call',
+        completed: false,
+        dueAt,
+        priority: 'high',
+        createdAt: '2026-09-01T08:00:00Z',
+        updatedAt: '2026-09-01T08:00:00Z',
+      },
+    ])
+
+    await act(async () => render(<App />))
+
+    expect(screen.getByText(/^Today ·/)).toBeInTheDocument()
+    expect(screen.getByText('High priority')).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(30_000))
+    expect(screen.getByText(/^Overdue ·/)).toBeInTheDocument()
+  })
+
+  test('shows completed metadata without active urgency wording', async () => {
+    const user = userEvent.setup()
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    mockedApi.listTodos.mockResolvedValue([
+      {
+        id: 1,
+        title: 'Filed report',
+        completed: true,
+        dueAt: '2020-01-01T09:00:00Z',
+        priority: 'low',
+        createdAt: '2026-09-01T08:00:00Z',
+        updatedAt: '2026-09-01T08:00:00Z',
+      },
+    ])
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Completed (1)' }))
+
+    expect(screen.getByText('Low priority')).toBeInTheDocument()
+    expect(screen.getByText(/^Due ·/)).toBeInTheDocument()
+    expect(screen.queryByText(/^Overdue ·/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit Filed report' })).toBeInTheDocument()
+  })
+
+  test('keeps the inline editor open with server field errors', async () => {
+    const user = userEvent.setup()
+    const todo: api.Todo = {
+      id: 1,
+      title: 'Plan release',
+      completed: false,
+      dueAt: null,
+      priority: null,
+      createdAt: '2026-09-01T08:00:00Z',
+      updatedAt: '2026-09-01T08:00:00Z',
+    }
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    mockedApi.listTodos.mockResolvedValue([todo])
+    mockedApi.updateTodo.mockRejectedValue(
+      new api.ApiError('Check the highlighted fields.', 'validation_error', {
+        priority: 'Priority must be low, medium, or high.',
+      }),
+    )
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Edit Plan release' }))
+    await user.click(screen.getByRole('button', { name: 'Save Plan release' }))
+
+    expect(await screen.findByText('Priority must be low, medium, or high.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Edit title for Plan release')).toBeInTheDocument()
+  })
+
   test('celebrates an all-complete list above the completed section', async () => {
     mockedApi.getSession.mockResolvedValue({
       user: { id: 1, email: 'person@example.com' },
@@ -90,6 +266,8 @@ describe('App', () => {
         id: 1,
         title: 'Plan the day',
         completed: true,
+        dueAt: null,
+        priority: null,
         createdAt: '2026-09-01T08:00:00Z',
         updatedAt: '2026-09-01T10:00:00Z',
       },
@@ -116,6 +294,8 @@ describe('App', () => {
         id: 2,
         title: 'Ship the app',
         completed: false,
+        dueAt: null,
+        priority: null,
         createdAt: '2026-09-01T09:00:00Z',
         updatedAt: '2026-09-01T09:00:00Z',
       },
@@ -123,6 +303,8 @@ describe('App', () => {
         id: 1,
         title: 'Plan the day',
         completed: true,
+        dueAt: null,
+        priority: null,
         createdAt: '2026-09-01T08:00:00Z',
         updatedAt: '2026-09-01T10:00:00Z',
       },
@@ -151,6 +333,8 @@ describe('App', () => {
       id: 1,
       title: 'Plan the day',
       completed: true,
+      dueAt: null,
+      priority: null,
       createdAt: '2026-09-01T08:00:00Z',
       updatedAt: '2026-09-01T10:00:00Z',
     }
@@ -158,6 +342,8 @@ describe('App', () => {
       id: 2,
       title: 'Ship the app',
       completed: true,
+      dueAt: null,
+      priority: null,
       createdAt: '2026-09-01T09:00:00Z',
       updatedAt: '2026-09-01T10:00:00Z',
     }
@@ -183,7 +369,7 @@ describe('App', () => {
       'aria-expanded',
       'true',
     )
-    expect(mockedApi.updateTodo).toHaveBeenCalledWith(1, false)
+    expect(mockedApi.updateTodo).toHaveBeenCalledWith(1, { completed: false })
 
     await user.click(screen.getByRole('button', { name: 'Remove Ship the app' }))
     await waitFor(() => {
@@ -215,6 +401,8 @@ describe('App', () => {
       id: 1,
       title: 'Plan the day',
       completed: false,
+      dueAt: null,
+      priority: null,
       createdAt: '2026-09-01T08:00:00Z',
       updatedAt: '2026-09-01T08:00:00Z',
     }
@@ -222,6 +410,8 @@ describe('App', () => {
       id: 2,
       title: 'Ship the app',
       completed: false,
+      dueAt: null,
+      priority: null,
       createdAt: '2026-09-01T09:00:00Z',
       updatedAt: '2026-09-01T09:00:00Z',
     }
@@ -243,7 +433,11 @@ describe('App', () => {
     await user.type(screen.getByLabelText('New todo'), 'Ship the app')
     await user.click(screen.getByRole('button', { name: 'Add todo' }))
     expect(await screen.findByText('Ship the app')).toBeInTheDocument()
-    expect(mockedApi.addTodo).toHaveBeenCalledWith('Ship the app')
+    expect(mockedApi.addTodo).toHaveBeenCalledWith({
+      title: 'Ship the app',
+      dueAt: null,
+      priority: null,
+    })
 
     await user.click(screen.getByRole('checkbox', { name: 'Mark Plan the day completed' }))
     expect(await screen.findByRole('button', { name: 'Completed (1)' })).toHaveAttribute(
@@ -254,7 +448,7 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.queryByText('Plan the day')).not.toBeInTheDocument()
     })
-    expect(mockedApi.updateTodo).toHaveBeenCalledWith(1, true)
+    expect(mockedApi.updateTodo).toHaveBeenCalledWith(1, { completed: true })
 
     await user.click(screen.getByRole('button', { name: 'Remove Ship the app' }))
     expect(await screen.findByText('1 completed')).toBeInTheDocument()
@@ -269,6 +463,8 @@ describe('App', () => {
       id: 1,
       title: 'Plan the day',
       completed: false,
+      dueAt: null,
+      priority: null,
       createdAt: '2026-09-01T08:00:00Z',
       updatedAt: '2026-09-01T08:00:00Z',
     }
@@ -292,7 +488,7 @@ describe('App', () => {
       await screen.findByRole('checkbox', { name: 'Mark Plan the day completed' }),
     )
 
-    expect(mockedApi.updateTodo).toHaveBeenCalledWith(1, true)
+    expect(mockedApi.updateTodo).toHaveBeenCalledWith(1, { completed: true })
     expect(screen.getByRole('list', { name: 'Active todos' })).toHaveTextContent('Plan the day')
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
 
@@ -320,6 +516,8 @@ describe('App', () => {
       id: 1,
       title: 'Plan the day',
       completed: false,
+      dueAt: null,
+      priority: null,
       createdAt: '2026-09-01T08:00:00Z',
       updatedAt: '2026-09-01T08:00:00Z',
     }
@@ -350,6 +548,8 @@ describe('App', () => {
       id: 1,
       title: 'Plan the day',
       completed: false,
+      dueAt: null,
+      priority: null,
       createdAt: '2026-09-01T08:00:00Z',
       updatedAt: '2026-09-01T08:00:00Z',
     }

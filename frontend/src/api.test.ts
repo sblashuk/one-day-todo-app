@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 
-import { addTodo, getSession, login, removeTodo } from './api'
+import { addTodo, getSession, login, removeTodo, updateTodo } from './api'
 
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -28,13 +28,51 @@ describe('HTTP client', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await getSession()
-    await addTodo('Plan the day')
+    await addTodo({
+      title: 'Plan the day',
+      dueAt: '2026-09-02T12:30:00Z',
+      priority: 'high',
+    })
 
     const [, init] = fetchMock.mock.calls[1]
     const headers = init?.headers as Headers
     expect(init?.credentials).toBe('same-origin')
     expect(headers.get('X-CSRFToken')).toBe('csrf-123')
     expect(headers.get('Content-Type')).toBe('application/json')
+    expect(init?.body).toBe(
+      JSON.stringify({
+        title: 'Plan the day',
+        dueAt: '2026-09-02T12:30:00Z',
+        priority: 'high',
+      }),
+    )
+  })
+
+  test('sends partial todo updates without overwriting other fields', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        todo: {
+          id: 7,
+          title: 'Ship the app',
+          completed: false,
+          dueAt: null,
+          priority: null,
+          createdAt: '2026-09-01T08:00:00Z',
+          updatedAt: '2026-09-02T08:00:00Z',
+        },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await updateTodo(7, { title: 'Ship the app', dueAt: null, priority: null })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/todos/7',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ title: 'Ship the app', dueAt: null, priority: null }),
+      }),
+    )
   })
 
   test('normalizes structured server errors', async () => {

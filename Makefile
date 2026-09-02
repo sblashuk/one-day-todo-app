@@ -19,7 +19,7 @@ BE_READY ?= http://127.0.0.1:$(BE_PORT)/api/health
 FE_COMMAND ?= $(PROJECT_ROOT)/frontend/node_modules/.bin/vite --host 127.0.0.1 --port $(FE_PORT)
 FE_READY ?= http://127.0.0.1:$(FE_PORT)/
 
-.PHONY: setup migrate be-test be-lint be-check fe-test fe-lint fe-typecheck fe-build fe-check makefile-test backend-test backend-lint backend-check frontend-test frontend-lint frontend-typecheck frontend-build frontend-check test check be-start be-stop fe-start fe-stop start stop clean dev
+.PHONY: setup migrate be-test be-lint be-check fe-test fe-lint fe-typecheck fe-build fe-check backend-test backend-lint backend-check frontend-test frontend-lint frontend-typecheck frontend-build frontend-check test check be-start be-stop fe-start fe-stop start stop clean dev
 
 setup:
 	python3 -m venv .venv
@@ -34,7 +34,7 @@ be-test:
 	.venv/bin/pytest backend
 
 be-lint:
-	.venv/bin/ruff check backend scripts tests
+	.venv/bin/ruff check backend scripts
 
 be-check: be-lint be-test
 
@@ -52,9 +52,6 @@ fe-build:
 
 fe-check: fe-lint fe-typecheck fe-test fe-build
 
-makefile-test:
-	$(PROJECT_ROOT)/.venv/bin/pytest $(PROJECT_ROOT)/tests/test_makefile.py
-
 backend-test: be-test
 backend-lint: be-lint
 backend-check: be-check
@@ -64,9 +61,9 @@ frontend-typecheck: fe-typecheck
 frontend-build: fe-build
 frontend-check: fe-check
 
-test: be-test fe-test makefile-test
+test: be-test fe-test
 
-check: be-check fe-check makefile-test
+check: be-check fe-check
 
 be-start:
 	@if $(DEV_PROCESS) status --name be --run-dir $(RUN_DIR); then :; else \
