@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 
-import { addTodo, getSession, login, removeTodo, updateTodo } from './api'
+import { addTodo, getSession, listCompletions, login, removeTodo, updateTodo } from './api'
 
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -109,5 +109,20 @@ describe('HTTP client', () => {
     vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockRejectedValue(new TypeError('offline')))
 
     await expect(getSession()).rejects.toMatchObject({ code: 'network_error' })
+  })
+
+  test('encodes completion range parameters and parses timestamps', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({ completions: [{ completedAt: '2026-09-02T08:00:00Z' }] }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      listCompletions('2026-06-15T00:00:00+02:00', '2026-09-07T00:00:00+02:00'),
+    ).resolves.toEqual([{ completedAt: '2026-09-02T08:00:00Z' }])
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/activity/completions?from=2026-06-15T00%3A00%3A00%2B02%3A00&to=2026-09-07T00%3A00%3A00%2B02%3A00',
+      expect.anything(),
+    )
   })
 })

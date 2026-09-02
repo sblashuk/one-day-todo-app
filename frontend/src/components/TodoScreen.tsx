@@ -8,10 +8,11 @@ import { TodoList } from './TodoList'
 
 type TodoScreenProps = {
   user: User
+  onNavigate: (path: string) => void
   onSignedOut: () => Promise<void>
 }
 
-export function TodoScreen({ user, onSignedOut }: TodoScreenProps) {
+export function TodoScreen({ user, onNavigate, onSignedOut }: TodoScreenProps) {
   const {
     todos,
     initialLoading,
@@ -56,7 +57,13 @@ export function TodoScreen({ user, onSignedOut }: TodoScreenProps) {
           <span>DAYLIST</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="hidden text-sm text-ink-muted sm:inline">{user.email}</span>
+          <a
+            className="account-link"
+            href="/profile"
+            onClick={(event) => { event.preventDefault(); onNavigate('/profile') }}
+          >
+            {user.email}
+          </a>
           <button
             className="quiet-button"
             type="button"

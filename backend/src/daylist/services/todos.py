@@ -1,9 +1,9 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import case, select
+from sqlalchemy import case, select, update
 
 from ..extensions import db
-from ..models import Todo
+from ..models import CompletionEvent, Todo
 
 
 class TodoValidationError(Exception):
@@ -104,8 +104,23 @@ def update_todo(user_id: int, todo_id: int, changes: dict[str, object]) -> Todo:
 
     if "title" in changes:
         todo.title = title or ""
-    if "completed" in changes:
-        todo.completed = bool(changes["completed"])
+    if changes.get("completed") is True:
+        transitioned = db.session.scalar(
+            update(Todo)
+            .where(
+                Todo.id == todo_id,
+                Todo.user_id == user_id,
+                Todo.deleted_at.is_(None),
+                Todo.completed.is_(False),
+            )
+            .values(completed=True)
+            .returning(Todo.id)
+        )
+        if transitioned is not None:
+            db.session.add(CompletionEvent(user_id=user_id, todo_id=todo.id))
+        todo.completed = True
+    elif "completed" in changes:
+        todo.completed = False
     if "dueAt" in changes:
         todo.due_at = due_at
     if "priority" in changes:

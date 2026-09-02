@@ -17,6 +17,7 @@ vi.mock('./api', async () => {
     addTodo: vi.fn(),
     updateTodo: vi.fn(),
     removeTodo: vi.fn(),
+    listCompletions: vi.fn(),
   }
 })
 
@@ -25,8 +26,85 @@ const mockedApi = vi.mocked(api)
 describe('App', () => {
   beforeEach(() => {
     vi.useRealTimers()
+    window.history.replaceState({}, '', '/')
     mockedApi.getSession.mockResolvedValue({ user: null, csrfToken: 'token' })
     mockedApi.listTodos.mockResolvedValue([])
+    mockedApi.listCompletions.mockResolvedValue([])
+  })
+
+  test('preserves the profile destination through authentication and returns to Today', async () => {
+    const user = userEvent.setup()
+    window.history.replaceState({}, '', '/profile')
+    mockedApi.getSession
+      .mockResolvedValueOnce({ user: null, csrfToken: 'anonymous-token' })
+      .mockResolvedValueOnce({
+        user: { id: 1, email: 'full-address@example.com' },
+        csrfToken: 'user-token',
+      })
+    mockedApi.login.mockResolvedValue({ id: 1, email: 'full-address@example.com' })
+    render(<App />)
+
+    await user.type(await screen.findByLabelText('Email'), 'full-address@example.com')
+    await user.type(screen.getByLabelText('Password'), 'password1')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByRole('heading', { name: 'Your activity' })).toBeInTheDocument()
+    expect(screen.getByText('full-address@example.com')).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/profile')
+
+    await user.click(screen.getByRole('link', { name: 'Back to Today' }))
+    expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/')
+  })
+
+  test('opens the profile from the account email with browser history', async () => {
+    const user = userEvent.setup()
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    render(<App />)
+
+    await user.click(await screen.findByRole('link', { name: 'person@example.com' }))
+    expect(await screen.findByRole('heading', { name: 'Your activity' })).toBeInTheDocument()
+    expect(screen.getByText(/No completions yet in these twelve weeks/)).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/profile')
+
+    act(() => {
+      window.history.back()
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+
+  test('shows an activity failure and recovers with retry', async () => {
+    const user = userEvent.setup()
+    window.history.replaceState({}, '', '/profile')
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    mockedApi.listCompletions
+      .mockRejectedValueOnce(new api.ApiError('Activity took a pause.'))
+      .mockResolvedValueOnce([{ completedAt: new Date().toISOString() }])
+    render(<App />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Activity took a pause.')
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('grid', { name: /completion activity/i })).toBeInTheDocument()
+    expect(mockedApi.listCompletions).toHaveBeenCalledTimes(2)
+  })
+
+  test('announces activity loading on a slow connection', async () => {
+    window.history.replaceState({}, '', '/profile')
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    mockedApi.listCompletions.mockReturnValue(new Promise(() => undefined))
+    render(<App />)
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Loading your activity…')
   })
 
   test('shows login and registration choices to an anonymous visitor', async () => {
