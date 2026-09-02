@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
@@ -77,6 +77,119 @@ describe('App', () => {
     render(<App />)
 
     expect(await screen.findByText('Your day is wide open.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Completed/ })).not.toBeInTheDocument()
+  })
+
+  test('celebrates an all-complete list above the completed section', async () => {
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    mockedApi.listTodos.mockResolvedValue([
+      {
+        id: 1,
+        title: 'Plan the day',
+        completed: true,
+        createdAt: '2026-09-01T08:00:00Z',
+        updatedAt: '2026-09-01T10:00:00Z',
+      },
+    ])
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'All done for today.' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Completed (1)' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+  })
+
+  test('keeps completed todos in a collapsible section', async () => {
+    const user = userEvent.setup()
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    mockedApi.listTodos.mockResolvedValue([
+      {
+        id: 2,
+        title: 'Ship the app',
+        completed: false,
+        createdAt: '2026-09-01T09:00:00Z',
+        updatedAt: '2026-09-01T09:00:00Z',
+      },
+      {
+        id: 1,
+        title: 'Plan the day',
+        completed: true,
+        createdAt: '2026-09-01T08:00:00Z',
+        updatedAt: '2026-09-01T10:00:00Z',
+      },
+    ])
+    render(<App />)
+
+    expect(await screen.findByRole('list', { name: 'Active todos' })).toHaveTextContent(
+      'Ship the app',
+    )
+    expect(screen.queryByText('Plan the day')).not.toBeInTheDocument()
+
+    const completedToggle = screen.getByRole('button', { name: 'Completed (1)' })
+    expect(completedToggle).toHaveAttribute('aria-expanded', 'false')
+    await user.click(completedToggle)
+    expect(completedToggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('list', { name: 'Completed todos' })).toHaveTextContent('Plan the day')
+
+    await user.click(completedToggle)
+    expect(completedToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Plan the day')).not.toBeInTheDocument()
+  })
+
+  test('restores and removes todos from the completed section', async () => {
+    const user = userEvent.setup()
+    const restored: api.Todo = {
+      id: 1,
+      title: 'Plan the day',
+      completed: true,
+      createdAt: '2026-09-01T08:00:00Z',
+      updatedAt: '2026-09-01T10:00:00Z',
+    }
+    const removed: api.Todo = {
+      id: 2,
+      title: 'Ship the app',
+      completed: true,
+      createdAt: '2026-09-01T09:00:00Z',
+      updatedAt: '2026-09-01T10:00:00Z',
+    }
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    mockedApi.listTodos
+      .mockResolvedValueOnce([removed, restored])
+      .mockResolvedValueOnce([{ ...restored, completed: false }, removed])
+      .mockResolvedValueOnce([{ ...restored, completed: false }])
+    mockedApi.updateTodo.mockResolvedValue({ ...restored, completed: false })
+    mockedApi.removeTodo.mockResolvedValue()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Completed (2)' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Mark Plan the day active' }))
+
+    expect(await screen.findByRole('list', { name: 'Active todos' })).toHaveTextContent(
+      'Plan the day',
+    )
+    expect(screen.getByRole('button', { name: 'Completed (1)' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    expect(mockedApi.updateTodo).toHaveBeenCalledWith(1, false)
+
+    await user.click(screen.getByRole('button', { name: 'Remove Ship the app' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /Completed/ })).not.toBeInTheDocument()
+    })
+    expect(mockedApi.removeTodo).toHaveBeenCalledWith(2)
   })
 
   test('signs out and returns to the anonymous screen', async () => {
@@ -133,7 +246,11 @@ describe('App', () => {
     expect(mockedApi.addTodo).toHaveBeenCalledWith('Ship the app')
 
     await user.click(screen.getByRole('checkbox', { name: 'Mark Plan the day completed' }))
-    expect(await screen.findByRole('checkbox', { name: 'Mark Plan the day active' })).toBeChecked()
+    expect(await screen.findByRole('button', { name: 'Completed (1)' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+    expect(screen.queryByText('Plan the day')).not.toBeInTheDocument()
     expect(mockedApi.updateTodo).toHaveBeenCalledWith(1, true)
 
     await user.click(screen.getByRole('button', { name: 'Remove Ship the app' }))
