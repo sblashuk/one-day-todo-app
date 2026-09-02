@@ -17,7 +17,7 @@ Run `make check` before declaring a change complete. A change is complete when i
 
 ### Issue tracker
 
-Issues are tracked as local markdown under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
+Issues are tracked in this repository's GitHub Issues. See `docs/agents/issue-tracker.md`.
 
 ### Domain docs
 
