@@ -28,6 +28,21 @@ def test_registration_requires_csrf(client: FlaskClient) -> None:
     assert response.get_json()["error"]["code"] == "csrf_error"
 
 
+def test_registration_requires_a_json_object(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/auth/register",
+        json=[],
+        headers={"X-CSRFToken": csrf_token(client)},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == {
+        "code": "validation_error",
+        "message": "Check the highlighted fields.",
+        "fields": {"request": "A JSON object is required."},
+    }
+
+
 def test_registration_normalizes_email_hashes_password_and_signs_in(
     app: Flask, client: FlaskClient
 ) -> None:
@@ -81,6 +96,39 @@ def test_duplicate_email_is_rejected_case_insensitively(client: FlaskClient) -> 
 
     assert response.status_code == 409
     assert response.get_json()["error"]["code"] == "email_exists"
+
+
+def test_login_requires_a_json_object(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/auth/login",
+        json=[],
+        headers={"X-CSRFToken": csrf_token(client)},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == {
+        "code": "validation_error",
+        "message": "Check the highlighted fields.",
+        "fields": {"request": "A JSON object is required."},
+    }
+
+
+def test_login_validates_email_and_password(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/auth/login",
+        json={"email": "not-an-email", "password": "short"},
+        headers={"X-CSRFToken": csrf_token(client)},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == {
+        "code": "validation_error",
+        "message": "Check the highlighted fields.",
+        "fields": {
+            "email": "Enter a valid email address.",
+            "password": "Password must be 8–128 characters.",
+        },
+    }
 
 
 def test_user_can_log_in_and_log_out(client: FlaskClient) -> None:

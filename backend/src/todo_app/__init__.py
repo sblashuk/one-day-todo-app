@@ -34,8 +34,8 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     csrf.init_app(app)
 
     from . import models  # noqa: F401
-    from .auth import blueprint as auth_blueprint
-    from .todos import blueprint as todos_blueprint
+    from .routes.auth import blueprint as auth_blueprint
+    from .routes.todos import blueprint as todos_blueprint
 
     app.register_blueprint(auth_blueprint)
     app.register_blueprint(todos_blueprint)
