@@ -15,3 +15,5 @@ backend/instance/
 frontend/node_modules/
 frontend/dist/
 frontend/coverage/
+
+.idea
