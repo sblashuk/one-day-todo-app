@@ -39,7 +39,7 @@ Start the backend and frontend in separate terminals:
 
 ```bash
 cd backend
-../.venv/bin/flask --app todo_app run --debug
+../.venv/bin/flask --app daylist run --debug
 ```
 
 ```bash

@@ -3,7 +3,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "one-day-todo-api"
+name = "daylist-api"
 version = "0.1.0"
 description = "Flask backend for the one-day todo app"
 requires-python = ">=3.12"
@@ -25,6 +25,8 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["daylist*"]
+namespaces = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -35,4 +37,3 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-

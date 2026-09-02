@@ -6,7 +6,7 @@ from flask import Flask
 from flask.testing import FlaskClient
 from flask_migrate import upgrade
 
-from todo_app import create_app
+from daylist import create_app
 
 
 @pytest.fixture()
@@ -35,4 +35,3 @@ def client(app: Flask) -> FlaskClient:
 def csrf_token(client: FlaskClient) -> str:
     response = client.get("/api/auth/session")
     return response.get_json()["csrfToken"]
-

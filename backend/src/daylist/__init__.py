@@ -11,7 +11,8 @@ from .extensions import csrf, db, login_manager, migrate
 
 
 def create_app(test_config: dict[str, Any] | None = None) -> Flask:
-    app = Flask(__name__, instance_relative_config=True)
+    instance_path = Path(__file__).resolve().parents[2] / "instance"
+    app = Flask(__name__, instance_relative_config=True, instance_path=str(instance_path))
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
 
     app.config.from_mapping(

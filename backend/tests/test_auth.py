@@ -2,8 +2,8 @@ from flask import Flask
 from flask.testing import FlaskClient
 from werkzeug.security import check_password_hash
 
-from todo_app.extensions import db
-from todo_app.models import User
+from daylist.extensions import db
+from daylist.models import User
 
 from .conftest import csrf_token
 

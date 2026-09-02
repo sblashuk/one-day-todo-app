@@ -7,7 +7,7 @@ setup:
 	cd frontend && npm install
 
 migrate:
-	.venv/bin/flask --app todo_app db upgrade -d backend/migrations
+	.venv/bin/flask --app daylist db upgrade -d backend/migrations
 
 backend-test:
 	.venv/bin/pytest backend
