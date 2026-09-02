@@ -227,6 +227,17 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
   }
 }
 
+@media (min-width: 561px) {
+  .profile-page { padding: 0.75rem 0 0; }
+  .profile-heading { margin-top: 0.75rem; }
+  .profile-heading .eyebrow, .activity-card-heading .eyebrow { margin: 0; }
+  .profile-heading h1 { font-size: clamp(3.2rem, 5vw, 4rem); }
+  .profile-heading > p:last-child { margin-top: 0.5rem; }
+  .activity-card { margin-top: 0.75rem; padding: 1.25rem; }
+  .activity-calendar-wrap { width: min(100%, 35rem); margin: 1rem auto 0; }
+  .activity-calendar-footer { margin-top: 0.75rem; }
+}
+
 @media (max-width: 850px) {
   .auth-layout { grid-template-columns: 1fr; }
   .brand-panel { min-height: 36vh; gap: 4rem; padding-bottom: 2.5rem; }
