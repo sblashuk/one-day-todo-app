@@ -57,6 +57,63 @@ describe('App', () => {
     expect(window.location.pathname).toBe('/')
   })
 
+  test('returns to Today from the DAYLIST wordmark', async () => {
+    const user = userEvent.setup()
+    window.history.replaceState({}, '', '/profile')
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    render(<App />)
+
+    await user.click(await screen.findByRole('link', { name: 'DAYLIST' }))
+
+    expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/')
+  })
+
+  test('preserves native DAYLIST behavior for modified and non-primary clicks', async () => {
+    window.history.replaceState({}, '', '/profile')
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'token',
+    })
+    render(<App />)
+
+    const homeLink = await screen.findByRole('link', { name: 'DAYLIST' })
+    const clicks = [
+      ['Meta', { metaKey: true }],
+      ['Control', { ctrlKey: true }],
+      ['Shift', { shiftKey: true }],
+      ['Alt', { altKey: true }],
+      ['non-primary', { button: 1 }],
+    ] satisfies Array<[string, MouseEventInit]>
+    const canceledClicks: Array<[string, boolean]> = []
+
+    for (const [label, eventInit] of clicks) {
+      const observeClick = (event: MouseEvent) => {
+        canceledClicks.push([label, event.defaultPrevented])
+        event.preventDefault()
+      }
+      document.addEventListener('click', observeClick, { once: true })
+      try {
+        fireEvent.click(homeLink, eventInit)
+      } finally {
+        document.removeEventListener('click', observeClick)
+      }
+    }
+
+    expect(canceledClicks).toEqual([
+      ['Meta', false],
+      ['Control', false],
+      ['Shift', false],
+      ['Alt', false],
+      ['non-primary', false],
+    ])
+    expect(screen.getByRole('heading', { name: 'Your activity' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/profile')
+  })
+
   test('opens the profile from the initials account menu with browser history', async () => {
     const user = userEvent.setup()
     mockedApi.getSession.mockResolvedValue({

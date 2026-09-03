@@ -53,6 +53,9 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
   box-shadow: 0 0 0 4rem rgba(255,255,255,0.12), 0 0 0 8rem rgba(36,92,69,0.05);
 }
 .brand-lockup { display: flex; align-items: center; gap: 0.65rem; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.2em; }
+.brand-home { border-radius: 0.25rem; color: inherit; text-decoration: none; transition: color 150ms ease; }
+.brand-home:hover { color: #245c45; }
+.brand-home:focus-visible { outline: 3px solid rgba(224, 111, 81, 0.45); outline-offset: 3px; }
 .brand-dot { width: 0.85rem; height: 0.85rem; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #e06f51; }
 .display-title { max-width: 11ch; font-family: Georgia, Cambria, serif; font-size: clamp(3.3rem, 6vw, 6.5rem); line-height: 0.98; letter-spacing: -0.055em; color: #1d2a24; }
 .eyebrow { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.2em; color: #245c45; }

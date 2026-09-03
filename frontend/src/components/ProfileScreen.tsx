@@ -5,6 +5,7 @@ import type { Completion, User } from '../api'
 import { createActivityWindow } from '../utils/activityCalendar'
 import { AccountMenu } from './AccountMenu'
 import { ActivityCalendar } from './ActivityCalendar'
+import { BrandHomeLink } from './BrandHomeLink'
 
 type ProfileScreenProps = {
   user: User
@@ -35,7 +36,7 @@ export function ProfileScreen({ user, onNavigate, onSignedOut }: ProfileScreenPr
   return (
     <main className="app-shell profile-shell">
       <header className="topbar">
-        <div className="brand-lockup"><span className="brand-dot" aria-hidden="true" /><span>DAYLIST</span></div>
+        <BrandHomeLink onNavigate={onNavigate} />
         <AccountMenu user={user} onNavigate={onNavigate} onSignedOut={onSignedOut} />
       </header>
       <section className="profile-page">

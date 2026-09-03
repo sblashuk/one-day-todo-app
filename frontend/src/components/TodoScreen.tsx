@@ -2,6 +2,7 @@ import { useTodos } from '../hooks/useTodos'
 import type { User } from '../types/auth'
 import { AccountMenu } from './AccountMenu'
 import { AddTodoForm } from './AddTodoForm'
+import { BrandHomeLink } from './BrandHomeLink'
 import { TodoList } from './TodoList'
 
 type TodoScreenProps = {
@@ -34,10 +35,7 @@ export function TodoScreen({ user, onNavigate, onSignedOut }: TodoScreenProps) {
   return (
     <main className="app-shell todo-shell">
       <header className="topbar">
-        <div className="brand-lockup">
-          <span className="brand-dot" aria-hidden="true" />
-          <span>DAYLIST</span>
-        </div>
+        <BrandHomeLink onNavigate={onNavigate} />
         <AccountMenu user={user} onNavigate={onNavigate} onSignedOut={onSignedOut} />
       </header>
 
