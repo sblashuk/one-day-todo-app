@@ -35,7 +35,7 @@ Avoid introducing another accent family when an existing semantic color fits. Us
 
 The authentication view is an asymmetric split composition: an expressive brand panel beside a centered form card. The todo view is a single focused column beneath a translucent top bar. Constrain reading and task content rather than stretching it across wide screens.
 
-The profile keeps its activity card broad while centering the twelve-week calendar at a readable maximum measure. On desktop, the profile heading and vertical rhythm should keep the calendar legend visible within a 768px-tall viewport at standard zoom; shorter viewports scroll naturally.
+On tablet and desktop, the profile forms one centered, moderately narrow column for its navigation, heading, and activity card. The twelve-week calendar and empty-state message sit at a smaller readable measure beneath the card's full-width header. On desktop, the profile heading and vertical rhythm should keep the calendar legend visible within a 768px-tall viewport at standard zoom; shorter viewports scroll naturally.
 
 At narrower widths, preserve hierarchy by simplifying the composition:
 
