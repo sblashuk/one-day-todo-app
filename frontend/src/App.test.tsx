@@ -57,7 +57,45 @@ describe('App', () => {
     expect(window.location.pathname).toBe('/')
   })
 
-  test('opens the profile from the account email with browser history', async () => {
+  test('opens the profile from the initials account menu with browser history', async () => {
+    const user = userEvent.setup()
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'john.smith@example.com' },
+      csrfToken: 'token',
+    })
+    render(<App />)
+
+    const accountMenu = await screen.findByRole('button', {
+      name: 'Account menu for john.smith@example.com',
+    })
+    expect(accountMenu).toHaveTextContent('JS')
+    expect(screen.queryByText('john.smith@example.com')).not.toBeInTheDocument()
+
+    await user.click(accountMenu)
+    await user.click(screen.getByRole('menuitem', { name: 'Profile' }))
+    expect(await screen.findByRole('heading', { name: 'Your activity' })).toBeInTheDocument()
+    expect(screen.getByText('john.smith@example.com')).toBeInTheDocument()
+    const profileAccountMenu = screen.getByRole('button', {
+      name: 'Account menu for john.smith@example.com',
+    })
+    expect(profileAccountMenu).toHaveTextContent('JS')
+    expect(screen.getByText(/No completions yet in these twelve weeks/)).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/profile')
+
+    const profileHistoryLength = window.history.length
+    await user.click(profileAccountMenu)
+    await user.click(screen.getByRole('menuitem', { name: 'Profile' }))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(window.history.length).toBe(profileHistoryLength)
+
+    act(() => {
+      window.history.back()
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+
+  test('dismisses the account menu with Escape or an outside click', async () => {
     const user = userEvent.setup()
     mockedApi.getSession.mockResolvedValue({
       user: { id: 1, email: 'person@example.com' },
@@ -65,16 +103,21 @@ describe('App', () => {
     })
     render(<App />)
 
-    await user.click(await screen.findByRole('link', { name: 'person@example.com' }))
-    expect(await screen.findByRole('heading', { name: 'Your activity' })).toBeInTheDocument()
-    expect(screen.getByText(/No completions yet in these twelve weeks/)).toBeInTheDocument()
-    expect(window.location.pathname).toBe('/profile')
-
-    act(() => {
-      window.history.back()
-      window.dispatchEvent(new PopStateEvent('popstate'))
+    const accountMenu = await screen.findByRole('button', {
+      name: 'Account menu for person@example.com',
     })
-    expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument()
+    expect(accountMenu).toHaveTextContent('PE')
+
+    await user.click(accountMenu)
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(accountMenu).toHaveFocus()
+
+    await user.click(accountMenu)
+    await user.click(screen.getByRole('heading', { name: 'Today' }))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(accountMenu).toHaveAttribute('aria-expanded', 'false')
   })
 
   test('shows an activity failure and recovers with retry', async () => {
@@ -467,10 +510,41 @@ describe('App', () => {
     mockedApi.logout.mockResolvedValue()
     render(<App />)
 
-    await user.click(await screen.findByRole('button', { name: 'Sign out' }))
+    await user.click(await screen.findByRole('button', {
+      name: 'Account menu for person@example.com',
+    }))
+    await user.click(screen.getByRole('menuitem', { name: 'Sign out' }))
 
     expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument()
     expect(mockedApi.logout).toHaveBeenCalledOnce()
+  })
+
+  test('keeps a failed sign-out recoverable inside the account menu', async () => {
+    const user = userEvent.setup()
+    let rejectLogout!: (reason?: unknown) => void
+    mockedApi.getSession.mockResolvedValue({
+      user: { id: 1, email: 'person@example.com' },
+      csrfToken: 'user-token',
+    })
+    mockedApi.logout.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => {
+      rejectLogout = reject
+    }))
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', {
+      name: 'Account menu for person@example.com',
+    }))
+    await user.click(screen.getByRole('menuitem', { name: 'Sign out' }))
+    expect(screen.getByRole('menuitem', { name: 'Signing out…' })).toBeDisabled()
+    await user.click(screen.getByRole('heading', { name: 'Today' }))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    await act(async () => rejectLogout(new api.ApiError('Could not sign out.')))
+
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not sign out.')
+    expect(screen.getByRole('menuitem', { name: 'Sign out' })).toBeEnabled()
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
   })
 
   test('adds, completes, and removes todos with a refetch after each change', async () => {

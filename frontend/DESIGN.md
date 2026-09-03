@@ -53,6 +53,7 @@ Prefer fluid sizing with `clamp()` and content-led breakpoints. The interface mu
 - **Forms** group labels, controls, and field-level errors. Inputs use warm white surfaces, visible borders, and a focus ring. Invalid controls expose both text and accessible state.
 - **Lists** read as one card divided into calm, full-width rows. Completion uses a custom circular check plus muted, struck-through text; removal remains a separate labeled action.
 - **Status surfaces** retain the same visual language: centered spinners for loading, a dashed and spacious empty state, and tinted banners or cards for retryable errors.
+- **Account menus** use a forest initials seal as their compact trigger and a paper popover for Profile and Sign out. Keep the same control on every authenticated screen, derive its initials from the account email, and leave the full email to Profile content rather than the top bar. Menu-local pending and error states must not displace the page's working content.
 - **Brand elements** remain minimal: the DAYLIST wordmark, coral leaf-like dot, editorial headline, and short focus-oriented copy.
 
 Reuse these patterns before creating a new component treatment. A new pattern should have a distinct semantic role and should be expressed through the shared theme or a reusable class rather than isolated literal values.
@@ -62,6 +63,7 @@ Reuse these patterns before creating a new component treatment. A new pattern sh
 - Every interactive control needs a visible hover, focus-visible, disabled, and pending state where applicable.
 - Keep focus rings high-contrast and offset from the control. Custom controls must preserve the native input and its keyboard behavior.
 - Give icon-only actions an accessible name; decorative marks and symbols stay hidden from assistive technology.
+- Initials avatars are buttons, not profile images: expose their account-menu purpose and expanded state, dismiss their menu on outside interaction or Escape, and return focus to the trigger after Escape.
 - Pair validation and failures with concise text, `aria-invalid` or alert semantics, and a recovery action when recovery is possible.
 - Announce loading and changing counts where useful without making decorative animation audible.
 - Preserve semantic headings, labels, lists, buttons, and form controls. Visual restyling must not weaken the rendered-interface test seam.

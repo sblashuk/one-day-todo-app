@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import * as api from '../api'
 import type { Completion, User } from '../api'
 import { createActivityWindow } from '../utils/activityCalendar'
+import { AccountMenu } from './AccountMenu'
 import { ActivityCalendar } from './ActivityCalendar'
 
 type ProfileScreenProps = {
@@ -15,7 +16,6 @@ export function ProfileScreen({ user, onNavigate, onSignedOut }: ProfileScreenPr
   const [completions, setCompletions] = useState<Completion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [logoutPending, setLogoutPending] = useState(false)
   const [activityWindow] = useState(createActivityWindow)
 
   const load = useCallback(async () => {
@@ -32,24 +32,11 @@ export function ProfileScreen({ user, onNavigate, onSignedOut }: ProfileScreenPr
 
   useEffect(() => void load(), [load])
 
-  async function signOut() {
-    setLogoutPending(true)
-    try {
-      await api.logout()
-      await onSignedOut()
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not sign out.')
-      setLogoutPending(false)
-    }
-  }
-
   return (
     <main className="app-shell profile-shell">
       <header className="topbar">
         <div className="brand-lockup"><span className="brand-dot" aria-hidden="true" /><span>DAYLIST</span></div>
-        <button className="quiet-button" type="button" onClick={() => void signOut()} disabled={logoutPending}>
-          {logoutPending ? 'Signing out…' : 'Sign out'}
-        </button>
+        <AccountMenu user={user} onNavigate={onNavigate} onSignedOut={onSignedOut} />
       </header>
       <section className="profile-page">
         <a aria-label="Back to Today" className="back-link" href="/" onClick={(event) => { event.preventDefault(); onNavigate('/') }}>

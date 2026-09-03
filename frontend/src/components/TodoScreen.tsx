@@ -1,8 +1,6 @@
-import { useState } from 'react'
-
-import * as api from '../api'
 import { useTodos } from '../hooks/useTodos'
 import type { User } from '../types/auth'
+import { AccountMenu } from './AccountMenu'
 import { AddTodoForm } from './AddTodoForm'
 import { TodoList } from './TodoList'
 
@@ -25,29 +23,13 @@ export function TodoScreen({ user, onNavigate, onSignedOut }: TodoScreenProps) {
     updateTodo,
     removeTodo,
   } = useTodos()
-  const [logoutPending, setLogoutPending] = useState(false)
-  const [logoutError, setLogoutError] = useState('')
-
-  async function signOut() {
-    setLogoutPending(true)
-    setLogoutError('')
-    try {
-      await api.logout()
-      await onSignedOut()
-    } catch (caught) {
-      setLogoutError(caught instanceof Error ? caught.message : 'Could not sign out.')
-      setLogoutPending(false)
-    }
-  }
-
   function retry() {
-    setLogoutError('')
     void loadTodos()
   }
 
   const activeCount = todos.filter((todo) => !todo.completed).length
   const completedCount = todos.length - activeCount
-  const error = logoutError || todoError
+  const error = todoError
 
   return (
     <main className="app-shell todo-shell">
@@ -56,23 +38,7 @@ export function TodoScreen({ user, onNavigate, onSignedOut }: TodoScreenProps) {
           <span className="brand-dot" aria-hidden="true" />
           <span>DAYLIST</span>
         </div>
-        <div className="flex items-center gap-4">
-          <a
-            className="account-link"
-            href="/profile"
-            onClick={(event) => { event.preventDefault(); onNavigate('/profile') }}
-          >
-            {user.email}
-          </a>
-          <button
-            className="quiet-button"
-            type="button"
-            onClick={() => void signOut()}
-            disabled={logoutPending}
-          >
-            {logoutPending ? 'Signing out…' : 'Sign out'}
-          </button>
-        </div>
+        <AccountMenu user={user} onNavigate={onNavigate} onSignedOut={onSignedOut} />
       </header>
 
       <section className="todo-page">
@@ -94,7 +60,6 @@ export function TodoScreen({ user, onNavigate, onSignedOut }: TodoScreenProps) {
           pending={pending === 'add'}
           fieldErrors={validation?.key === 'add' ? validation.fields : undefined}
           onAdd={(input) => {
-            setLogoutError('')
             return addTodo(input)
           }}
         />
@@ -114,12 +79,10 @@ export function TodoScreen({ user, onNavigate, onSignedOut }: TodoScreenProps) {
           pending={pending}
           validation={validation}
           onToggle={(todo) => {
-            setLogoutError('')
             return toggleTodo(todo)
           }}
           onUpdate={updateTodo}
           onRemove={(id) => {
-            setLogoutError('')
             void removeTodo(id)
           }}
         />

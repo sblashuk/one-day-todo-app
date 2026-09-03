@@ -74,8 +74,55 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
 .topbar { display: flex; align-items: center; justify-content: space-between; min-height: 5rem; border-bottom: 1px solid rgba(222, 219, 209, 0.85); padding: 1rem clamp(1.25rem, 5vw, 4.5rem); background: rgba(245, 242, 233, 0.78); backdrop-filter: blur(14px); }
 .quiet-button { border: 1px solid #d4d2c8; border-radius: 999px; background: rgba(255,255,255,0.5); padding: 0.55rem 0.9rem; color: #3f4b45; font-size: 0.8rem; font-weight: 700; }
 .quiet-button:hover:not(:disabled) { border-color: #245c45; color: #245c45; }
-.account-link { max-width: min(45vw, 22rem); overflow: hidden; color: #69736d; font-size: 0.82rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
-.account-link:hover { color: #245c45; text-decoration: underline; text-underline-offset: 0.25rem; }
+.account-menu { position: relative; z-index: 10; flex: 0 0 auto; }
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  border: 2px solid #fffdf7;
+  border-radius: 50%;
+  background: #245c45;
+  box-shadow: 0 0 0 1px rgba(36, 92, 69, 0.22), 0 0.45rem 1.2rem rgba(36, 68, 53, 0.14);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  transition: transform 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+.account-avatar:hover:not(:disabled) { background: #174432; transform: translateY(-1px); }
+.account-avatar[aria-expanded="true"] { background: #174432; box-shadow: 0 0 0 3px rgba(224, 111, 81, 0.28), 0 0.65rem 1.4rem rgba(36, 68, 53, 0.16); }
+.account-menu-popover {
+  position: absolute;
+  top: calc(100% + 0.7rem);
+  right: 0;
+  width: min(12.5rem, calc(100vw - 2rem));
+  overflow: hidden;
+  border: 1px solid #dedbd1;
+  border-radius: 0.9rem;
+  background: #fffdf7;
+  box-shadow: 0 1.1rem 2.8rem rgba(44, 55, 48, 0.16);
+  animation: account-menu-arrival 140ms ease-out;
+}
+.account-menu-popover [role="menu"] { display: grid; padding: 0.4rem; }
+.account-menu-popover [role="menuitem"] {
+  width: 100%;
+  border: 0;
+  border-radius: 0.6rem;
+  background: transparent;
+  padding: 0.7rem 0.75rem;
+  color: #3f4b45;
+  font-size: 0.8rem;
+  font-weight: 750;
+  text-align: left;
+}
+.account-menu-popover [role="menuitem"]:hover:not(:disabled),
+.account-menu-popover [role="menuitem"]:focus-visible { background: #edf0e6; color: #174432; }
+.account-menu-popover [role="menuitem"]:last-child { color: #973927; }
+.account-menu-popover [role="menuitem"]:last-child:hover:not(:disabled),
+.account-menu-popover [role="menuitem"]:last-child:focus-visible { background: #fff0eb; color: #973927; }
+.account-menu-error { margin: 0; border-top: 1px solid #efb5a6; background: #fff0eb; padding: 0.65rem 0.75rem; color: #973927; font-size: 0.72rem; font-weight: 650; line-height: 1.4; }
 .todo-page { width: min(100% - 2rem, 54rem); margin: 0 auto; padding: clamp(3rem, 8vw, 6.5rem) 0; }
 .todo-heading { display: flex; align-items: end; justify-content: space-between; gap: 2rem; }
 .count-pill { display: flex; gap: 0.5rem; border: 1px solid #d8d7cc; border-radius: 999px; background: rgba(255,255,255,0.42); padding: 0.55rem 0.85rem; color: #69736d; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
@@ -213,8 +260,15 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
   100% { border-radius: 0.75rem; background: transparent; box-shadow: 0 0 0 7px rgba(224, 111, 81, 0); }
 }
 
+@keyframes account-menu-arrival {
+  from { opacity: 0; transform: translateY(-0.35rem) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
+  .account-avatar { transition: none; }
+  .account-menu-popover { animation: none; }
   .completed-chevron { transition: none; }
   .todo-row--departing { display: none; animation: none; }
   .todo-row--departing .custom-check { animation: none; }
@@ -248,7 +302,6 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
 
 @media (max-width: 560px) {
   .topbar { padding-inline: 1rem; }
-  .account-link { max-width: 44vw; }
   .activity-card-heading { align-items: flex-start; flex-direction: column; gap: 0.75rem; }
   .activity-card-heading > p { text-align: left; }
   .activity-calendar-footer { align-items: flex-start; flex-direction: column; }

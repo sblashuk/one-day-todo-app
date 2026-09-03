@@ -6,11 +6,11 @@ Status: ready-for-agent
 
 People using Daylist can see which todos are currently complete, but they cannot see their completion activity over time. The account identity is confined to the top bar, and there is no profile view that turns finished work into a useful historical pattern.
 
-Using a todo's `updated_at` timestamp for that history would be misleading. Editing, reopening, or deleting a todo changes that timestamp, so past activity could move between dates or disappear. Completion history needs a meaning that remains stable even while the todo continues to change.
+Using a todo's `updated_at` timestamp for that history would be misleading. Editing, reopening, or deleting a todo changes that timestamp, so past activity could move between dates or disappear. Completion history needs a meaning that remains stable even while the todo continues to change. Account navigation should also stay compact without exposing a long email address in the top bar.
 
 ## Solution
 
-Add an authenticated `/profile` page that presents the user's full account email and a calm, Daylist-styled activity calendar. The calendar shows the current week and the preceding eleven weeks as columns, with Monday through Sunday as rows. Each date's color intensity communicates how many todos were completed that day, using fixed thresholds and the existing paper, sage, forest, and dark-forest palette.
+Add an authenticated `/profile` page that presents the user's full account email and a calm, Daylist-styled activity calendar. On every authenticated screen, a forest-green initials avatar opens an account menu with Profile and Sign out actions; the initials are derived from the email local part and do not introduce stored profile data. The calendar shows the current week and the preceding eleven weeks as columns, with Monday through Sunday as rows. Each date's color intensity communicates how many todos were completed that day, using fixed thresholds and the existing paper, sage, forest, and dark-forest palette.
 
 Completion activity is backed by immutable completion events rather than mutable todo timestamps. Each incomplete-to-complete transition records one event. Reopening or soft-deleting the todo leaves earlier events intact, and completing a reopened todo records another event. Existing completed todos receive one approximate historical event based on their current `updated_at` during migration.
 
@@ -18,7 +18,7 @@ The profile loads completion timestamps for the visible interval and groups them
 
 ## User Stories
 
-1. As a signed-in Daylist user, I want to open my profile from the account email in the top bar, so that I can review my completion activity.
+1. As a signed-in Daylist user, I want to open an account menu from my initials avatar and choose Profile, so that I can review my completion activity without displaying my full email in the top bar.
 2. As a signed-in Daylist user, I want my profile to have the stable `/profile` URL, so that browser navigation behaves like navigation between pages.
 3. As a signed-in Daylist user, I want to return from my profile to Today, so that I can continue managing my current list.
 4. As a signed-in Daylist user, I want to see my full account email on my profile, so that I know which account's history I am viewing.
@@ -56,12 +56,17 @@ The profile loads completion timestamps for the visible interval and groups them
 36. As a user viewing the calendar on another device, I want dates grouped using that device's local timezone, so that the profile follows the timezone of the current viewing context.
 37. As a privacy-conscious user, I want calendar tooltips to show only dates and counts, so that todo titles are not revealed by the activity view.
 38. As a Daylist user, I want the profile to use the same editorial typography, spacing, shapes, and colors as Today, so that it feels like part of one product.
+39. As a signed-in Daylist user, I want the same account menu on Today and Profile, so that profile navigation and sign-out stay predictable.
+40. As a keyboard user, I want to dismiss the account menu with Escape and return focus to its avatar, so that I can recover without reaching for a pointer.
+41. As a signed-in Daylist user whose sign-out fails, I want the menu to remain open with a concise error and an enabled retry action, so that unrelated page content is not replaced.
 
 ## Implementation Decisions
 
 - The profile is an authenticated browser route at `/profile`; Today remains at `/`. Use client-side routing with browser history semantics rather than an in-memory view toggle.
 - The existing account email is the profile identity. This feature does not introduce a username or display-name field and does not modify registration credentials.
-- The top-bar email becomes the profile navigation control. The profile provides a clearly named route back to Today and retains the existing sign-out behavior.
+- Every authenticated top bar uses a shared account menu instead of a visible email and standalone sign-out control. Its circular forest avatar deterministically derives up to two uppercase initials from the email local part: use the first characters of the first two punctuation-separated segments, otherwise the first two characters of the single segment, with one character or `?` as defensive fallbacks.
+- The menu contains exactly Profile and Sign out. It closes after selection, outside interaction, or Escape; Escape returns focus to the avatar. Selecting Profile while already at `/profile` closes the menu without adding browser history. Sign-out pending and failure states remain inside the open menu, and a failed attempt can be retried without replacing page-level content.
+- The profile retains the full email as its account identity and provides a clearly named route back to Today. The initials avatar is presentational and does not introduce a username, display name, uploaded image, or persisted preference.
 - Introduce the domain concept `CompletionEvent`: an immutable, user-owned record of a todo's incomplete-to-complete transition. Record its identifier, owning user, source todo, and UTC completion timestamp.
 - Create completion events within the same database transaction as the todo state change. Create an event only when persisted state changes from `false` to `true`; redundant `true` updates create none. Changes from `true` to `false` and soft deletion never remove events.
 - Add an index supporting completion-event lookup by user and timestamp. Preserve ownership explicitly on the event so activity queries can remain directly user-scoped.
@@ -84,7 +89,7 @@ The profile loads completion timestamps for the visible interval and groups them
 - Tests assert behavior through the repo's two established seams: Flask HTTP behavior and the rendered React user interface. They do not query persistence as a side channel, test private helpers, or couple assertions to internal module composition.
 - Flask HTTP tests cover authentication, standard validation errors, inclusive/exclusive range behavior, chronological response ordering, user isolation, initial completion, redundant completed updates, reopen-and-recomplete behavior, and retained activity after soft deletion.
 - The migration is exercised with the real migration chain. A legacy completed todo is upgraded and then observed through the authenticated activity HTTP interface, establishing that backfilled activity is externally visible without making model internals the behavioral assertion surface.
-- Rendered React tests cover navigation to and from `/profile`, direct-route authentication behavior, full email presentation, loading, empty, error, and retry states.
+- Rendered React tests cover initials generation, account-menu visibility on Today and Profile, menu-based navigation to and from `/profile`, direct-route authentication behavior, full email presentation on Profile, dismissal and focus restoration, sign-out pending/failure recovery, and profile loading, empty, error, and retry states.
 - Rendered calendar tests assert twelve week columns, seven Monday-first rows, current partial-week handling, future unavailable days, month labels, fixed density classes or accessible level descriptions, legend copy, and the date/count tooltip.
 - Local-time behavior is tested at the rendered seam by generating UTC timestamps from known local `Date` values, ensuring events on either side of local midnight appear on the expected visual dates without assuming the test runner's timezone.
 - Interaction tests cover pointer hover, touch/click selection, one-stop keyboard focus, arrow-key movement matching the column/row layout, bounds behavior, and the active date/count announcement.
@@ -95,7 +100,7 @@ The profile loads completion timestamps for the visible interval and groups them
 
 ## Out of Scope
 
-- Adding a separate username, editable display name, avatar, biography, or other account settings.
+- Adding a separate username, editable display name, uploaded or customizable avatar, biography, or other account settings.
 - Showing todo titles, priorities, due dates, or per-day task lists in the profile.
 - Filtering, paging, or navigating beyond the fixed twelve-week window.
 - A full-year heatmap, custom date ranges, streak calculations, achievements, comparisons, or productivity scoring.
